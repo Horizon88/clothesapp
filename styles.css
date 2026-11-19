@@ -1143,3 +1143,92 @@ kbd {
 .guide-list dt { font-weight: 600; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
 .guide-list dt span { font-family: var(--f-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 400; }
 .guide-list dd { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+
+/* in-stock listings */
+.mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 12px;
+}
+.mode button {
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.mode button b {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.mode button[aria-checked="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-soft); }
+
+.card-photo { padding: 0 0 0 30px; background: var(--mat); }
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.price-tag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: var(--f-mono);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--bg);
+}
+.card-listing .stamp-like { left: 44px; }
+.card-listing .card-name { font-size: clamp(26px, 7.4vw, 34px); }
+.sizes {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+.sizes span {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: var(--indigo);
+  color: var(--on-indigo);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.flag-link { color: var(--indigo); border-color: var(--indigo); text-decoration: none; }
+.flag-link:hover { background: var(--indigo); color: var(--on-indigo); }
+
+.ci-photo { padding: 0; overflow: hidden; }
+.ci-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; border-radius: 10px; }
+.ci-meta { font-size: 13px; color: var(--muted); }
+.ci-meta.warn { color: var(--nope); }
+.btn-sm { min-height: 34px; padding: 0 12px; font-size: 13px; }
+.guide-sub { font-size: 14px; font-weight: 600; margin-top: 4px; }
+
+@media (max-height: 700px) and (max-width: 899px) {
+  .card-listing .card-foot .check { display: none; }
+}

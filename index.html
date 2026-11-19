@@ -43,6 +43,10 @@
           <span>Add your height and a tee that fits. Every card then shows a tall check.</span>
           <a href="#fit">Add measurements</a>
         </div>
+        <div class="mode" id="modeBar" role="radiogroup" aria-label="What to swipe">
+          <button type="button" role="radio" data-mode="stock" aria-checked="true">In stock now <b>…</b></button>
+          <button type="button" role="radio" data-mode="ideas" aria-checked="false">Ideas <b>…</b></button>
+        </div>
         <div class="deck" id="deck" aria-live="polite"></div>
         <div class="actions" role="group" aria-label="Decide on this item">
           <button class="act act-undo" id="btnUndo" type="button" aria-label="Undo last swipe" title="Undo (Z)">
@@ -76,7 +80,7 @@
         <div class="page-head">
           <div>
             <h1>Closet</h1>
-            <p class="lede">Everything you liked, with ready-made searches for the stores you shop. Search words are in English, Thai and Chinese, with tall and big-size terms added.</p>
+            <p class="lede">Everything you liked. In-stock items link straight to the store. Idea cards come with ready-made searches in English, Thai and Chinese.</p>
           </div>
           <button class="btn" id="btnCopyList" type="button">Copy shopping list</button>
         </div>

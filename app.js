@@ -34,7 +34,7 @@
   };
 
   function defaultState() {
-    return { v: 1, profile: { ...DEFAULT_PROFILE }, swipes: {}, history: [], custom: [], queue: [], updatedAt: 0 };
+    return { v: 1, mode: "stock", profile: { ...DEFAULT_PROFILE }, swipes: {}, history: [], custom: [], queue: [], saved: {}, updatedAt: 0 };
   }
 
   function normalize(raw) {
@@ -46,6 +46,8 @@
     s.history = Array.isArray(raw.history) ? raw.history.slice(-300) : [];
     s.custom = Array.isArray(raw.custom) ? raw.custom.filter(validCustom).slice(-80) : [];
     s.queue = Array.isArray(raw.queue) ? raw.queue.slice(0, 40) : [];
+    s.mode = raw.mode === "ideas" ? "ideas" : "stock";
+    s.saved = raw.saved && typeof raw.saved === "object" ? { ...raw.saved } : {};
     s.updatedAt = Number(raw.updatedAt) || 0;
     return s;
   }
@@ -134,8 +136,21 @@
     return c && typeof c.id === "string" && D.CATEGORIES[c.cat] && D.FABRICS[c.fabric] && Array.isArray(c.colors) && c.colors.length;
   }
 
+  let LISTINGS = null;      // { fetched, stores, listings } once listings.json loads
+  let listingsState = "loading";
+  const STORE_BY_ID = () => Object.fromEntries(((LISTINGS && LISTINGS.stores) || []).map((x) => [x.id, x]));
+
+  function listingItem(r) {
+    return {
+      id: "L-" + r.id, listing: r, name: r.title, cat: D.CATEGORIES[r.cat] ? r.cat : "tee",
+      fabric: D.FABRICS[r.fabric] ? r.fabric : "cotton-jersey", colors: [D.COLORS[r.color] ? r.color : "raw"],
+      vibe: r.vibe || [], dept: r.dept || "any", why: ""
+    };
+  }
+
   function allItems() {
-    return D.ITEMS.concat(S.custom);
+    const listed = LISTINGS ? LISTINGS.listings.map(listingItem) : [];
+    return D.ITEMS.concat(S.custom, listed);
   }
 
   // One card per item colourway.
@@ -158,10 +173,50 @@
     CARD_BY_ID = new Map(CARDS.map((c) => [c.id, c]));
   }
 
+  const LETTERS = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "6XL"];
+  const W_NUM = { M: [8, 10], L: [12, 14], XL: [16, 18], "2XL": [18, 20], "3XL": [20, 22], "4XL": [22, 24], "5XL": [24, 26] };
+
+  // Does one size label match this person? Unknown preferences match XL and up.
+  function sizeMatches(label) {
+    const p = S.profile;
+    if (label === "One size") return true;
+    if (/^\d{1,2}$/.test(label)) {
+      const n = Number(label);
+      if (n >= 26) {
+        if (!p.waist) return n >= 34;
+        const w = Math.round(p.waist / 2.54);
+        return n >= w - 1 && n <= w + 2;
+      }
+      if (!p.usualSize || !W_NUM[p.usualSize]) return n >= 14;
+      return W_NUM[p.usualSize].includes(n);
+    }
+    const parts = label.split("/");
+    if (!p.usualSize) return parts.some((x) => LETTERS.indexOf(x) >= LETTERS.indexOf("XL"));
+    return parts.includes(p.usualSize);
+  }
+
+  function sizesForMe(r) {
+    const out = [];
+    for (const [len, sizes] of Object.entries(r.sizes || {})) {
+      const mine = sizes.filter(sizeMatches);
+      if (mine.length) out.push([len, mine]);
+    }
+    return out;
+  }
+
   function eligible(card) {
     const p = S.profile;
     const f = D.FABRICS[card.item.fabric];
     if (!f) return false;
+    const isListing = !!card.item.listing;
+    if (isListing && S.mode !== "stock") return false;
+    if (!isListing && !card.item.custom && S.mode === "stock") return false;
+    if (isListing) {
+      const k = card.item.listing.kind;
+      if (k === "semi" && !p.allowSemi) return false;
+      if (k === "stretch" && !p.allowStretch) return false;
+      if (!sizesForMe(card.item.listing).length) return false;
+    }
     if (f.kind === "semi" && !p.allowSemi) return false;
     if (f.kind === "stretch" && !p.allowStretch) return false;
     if (card.item.dept === "w" && p.dept === "m") return false;
@@ -211,6 +266,12 @@
     s += heat * (fab.breath - 3);
     if (p.organic && (fab.organic || /organic/i.test(card.item.name))) s += 0.4;
     if (card.item.custom) s += 0.3;
+    if (card.item.listing) {
+      const r = card.item.listing;
+      if (!r.tall) s -= 0.5;
+      if (r.organic) s += 0.2;
+      if (r.kind === "natural") s += 0.2;
+    }
     return s + jit(card.id);
   }
 
@@ -276,6 +337,7 @@
     const p = S.profile;
     const parts = [];
     for (const k of fitKeys(item)) {
+      if (item.listing && (k === "waist" || k === "shoe")) continue; // already matched by the in-stock sizes
       if (k === "shoe") { if (p.shoe) parts.push("EU " + p.shoe + "+"); continue; }
       if (k === "height") { if (p.height) parts.push("made for " + fmtLen(p.height)); continue; }
       if (k === "waist") { if (p.waist) parts.push("waist " + fmtLen(p.waist, false)); continue; }
@@ -437,7 +499,51 @@
     return `<div class="tape" aria-hidden="true">${ticks}</div>${mark}`;
   }
 
+  function money(r) {
+    if (r.price == null) return "";
+    try { return new Intl.NumberFormat("en-US", { style: "currency", currency: r.currency || "USD", maximumFractionDigits: r.price % 1 ? 2 : 0 }).format(r.price); }
+    catch (e) { return "$" + r.price; }
+  }
+
+  function sizeLineText(r) {
+    return sizesForMe(r).map(([len, sz]) => (len === "Regular" ? "" : len + ": ") + sz.join(", ")).join(" · ");
+  }
+
+  function listingCardHTML(card, depth) {
+    const it = card.item, r = it.listing;
+    const store = STORE_BY_ID()[r.store] || { name: r.store };
+    const flags = [];
+    if (!r.tall) flags.push(`<span class="flag flag-warn">No tall lengths: check the chart</span>`);
+    if (r.kind === "stretch") flags.push(`<span class="flag flag-warn">Has a little stretch</span>`);
+    if (r.kind === "semi") flags.push(`<span class="flag flag-warn">Lyocell blend</span>`);
+    if (r.organic) flags.push(`<span class="flag">Organic</span>`);
+    const check = tallCheck(it);
+    const art = r.img
+      ? `<img class="photo" src="${esc(r.img)}" alt="${esc(r.colorName + " " + r.title)}" draggable="false">`
+      : garmentSVG(it, card.color);
+    return `<article class="card card-listing" data-id="${esc(card.id)}" data-depth="${depth}" aria-label="${esc(r.title + ", " + store.name)}" ${depth ? 'aria-hidden="true"' : ""}>
+      <div class="card-art card-photo">
+        ${tapeHTML(null)}
+        ${art}
+        <span class="price-tag">${esc(money(r))}</span>
+        <span class="stamp stamp-like">Like</span>
+        <span class="stamp stamp-nope">Pass</span>
+        <span class="stamp stamp-love">Love</span>
+      </div>
+      <div class="card-info">
+        <p class="eyebrow">${esc(store.name)} · ${esc(r.comp)}</p>
+        <h2 class="card-name">${esc(r.title)}</h2>
+        <p class="sizes"><span>In stock for you</span> ${esc(sizeLineText(r))}</p>
+        <div class="card-foot">
+          ${check ? `<p class="check"><span>Chart check</span> ${esc(check)}</p>` : ""}
+          <div class="flags">${flags.join("")}<a class="flag flag-link" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Open listing ↗</a></div>
+        </div>
+      </div>
+    </article>`;
+  }
+
   function cardHTML(card, depth) {
+    if (card.item.listing) return listingCardHTML(card, depth);
     const it = card.item;
     const fab = D.FABRICS[it.fabric];
     const col = D.COLORS[card.color];
@@ -473,13 +579,23 @@
   function renderDeck() {
     const deck = $("#deck");
     const top3 = deckOrder.slice(0, 3);
+    renderModeBar();
     if (!top3.length) {
       const swiped = Object.keys(S.swipes).length;
-      deck.innerHTML = `<div class="deck-empty">
-        <h2>That's the whole rack.</h2>
-        <p>You've seen ${swiped} cards. Ask your stylist for new ideas, or allow more fabrics in Fit.</p>
-        <div class="row"><a class="btn btn-primary" href="#stylist">Ask the stylist</a><a class="btn" href="#closet">Open closet</a></div>
-      </div>`;
+      const loading = S.mode === "stock" && listingsState === "loading";
+      deck.innerHTML = loading
+        ? `<div class="deck-empty"><h2>Checking stock…</h2><p>Loading items that are in stock in your size.</p></div>`
+        : S.mode === "stock"
+        ? `<div class="deck-empty">
+            <h2>Nothing left in stock for you.</h2>
+            <p>${S.profile.usualSize ? `Only ${esc(S.profile.usualSize)} is shown. ` : ""}Try the Ideas deck, allow stretch or lyocell in Fit, or ask the stylist.</p>
+            <div class="row"><button type="button" class="btn btn-primary" data-setmode="ideas">Swipe ideas</button><a class="btn" href="#fit">Change size</a></div>
+          </div>`
+        : `<div class="deck-empty">
+            <h2>That's the whole rack.</h2>
+            <p>You've seen ${swiped} cards. Ask your stylist for new ideas, or allow more fabrics in Fit.</p>
+            <div class="row"><a class="btn btn-primary" href="#stylist">Ask the stylist</a><a class="btn" href="#closet">Open closet</a></div>
+          </div>`;
       $("#btnNope").disabled = $("#btnLike").disabled = $("#btnLove").disabled = true;
     } else {
       deck.innerHTML = top3.map((id, i) => cardHTML(CARD_BY_ID.get(id), i)).reverse().join("");
@@ -488,7 +604,36 @@
     }
     $("#btnUndo").disabled = !S.history.length;
     const p = S.profile;
-    $("#setupNudge").hidden = !!(p.height || p.len || p.inseam);
+    const nudge = $("#setupNudge");
+    if (S.mode === "stock" && !p.usualSize) {
+      nudge.hidden = false;
+      nudge.firstElementChild.textContent = "Showing XL and up. Set your usual size and waist to see only what's in stock for you.";
+      nudge.lastElementChild.textContent = "Set size";
+    } else {
+      nudge.hidden = !!(p.height || p.len || p.inseam);
+      nudge.firstElementChild.textContent = "Add your height and a tee that fits. Every card then shows a tall check.";
+      nudge.lastElementChild.textContent = "Add measurements";
+    }
+  }
+
+  function countFor(mode) {
+    const keep = S.mode;
+    S.mode = mode;
+    const n = CARDS.filter((c) => eligible(c) && !S.swipes[c.id]).length;
+    S.mode = keep;
+    return n;
+  }
+
+  function renderModeBar() {
+    const bar = $("#modeBar");
+    if (!bar) return;
+    bar.hidden = listingsState === "failed";
+    for (const b of $$("[data-mode]", bar)) {
+      const on = b.dataset.mode === S.mode;
+      b.setAttribute("aria-checked", on ? "true" : "false");
+      const n = b.dataset.mode === "stock" && listingsState === "loading" ? "…" : countFor(b.dataset.mode);
+      $("b", b).textContent = n;
+    }
   }
 
   /* ---------------------------------------------------------------- swipe */
@@ -508,7 +653,7 @@
     };
 
     el.addEventListener("pointerdown", (e) => {
-      if (busy || e.button > 0) return;
+      if (busy || e.button > 0 || e.target.closest("a")) return;
       dragging = true; pid = e.pointerId;
       sx = e.clientX; sy = e.clientY; dx = dy = 0;
       el.setPointerCapture(pid);
@@ -565,6 +710,8 @@
 
   function commitSwipe(id, action) {
     S.swipes[id] = { a: action, t: Date.now() };
+    const sc = CARD_BY_ID.get(id);
+    if (sc && sc.item.listing && action !== "nope") S.saved[id] = sc.item.listing;
     S.history.push(id);
     if (S.history.length > 300) S.history = S.history.slice(-300);
     S.queue = S.queue.filter((q) => q !== id);
@@ -690,13 +837,35 @@
   function keptCards() {
     const out = [];
     for (const [id, sw] of Object.entries(S.swipes)) {
-      const c = CARD_BY_ID.get(id);
-      if (c && (sw.a === "like" || sw.a === "love")) out.push({ c, a: sw.a, t: sw.t });
+      if (sw.a !== "like" && sw.a !== "love") continue;
+      let c = CARD_BY_ID.get(id);
+      if (!c && S.saved[id]) { const item = listingItem(S.saved[id]); c = { id, item, color: item.colors[0], gone: listingsState === "ok" }; }
+      if (c) out.push({ c, a: sw.a, t: sw.t });
     }
     return out.sort((a, b) => (a.a === b.a ? b.t - a.t : a.a === "love" ? -1 : 1));
   }
 
+  function closetListingHTML({ c, a }) {
+    const it = c.item, r = it.listing;
+    const store = STORE_BY_ID()[r.store] || { name: r.store };
+    const mine = sizeLineText(r);
+    return `<li class="ci" data-id="${esc(c.id)}">
+      <div class="ci-art ci-photo">${r.img && !c.gone ? `<img src="${esc(r.img)}" alt="" loading="lazy">` : garmentSVG(it, c.color, "thumb")}</div>
+      <div class="ci-body">
+        <p class="eyebrow">${a === "love" ? '<span class="pill pill-love">Loved</span>' : '<span class="pill">Liked</span>'} ${esc(store.name)} · ${esc(money(r))}</p>
+        <h3>${esc(r.title)}</h3>
+        <p class="ci-meta">${esc(r.colorName ? r.colorName + " · " : "")}${esc(r.comp)}</p>
+        ${c.gone ? `<p class="ci-meta warn">Not in the latest stock check. It may have sold out.</p>` : mine ? `<p class="sizes"><span>In stock</span> ${esc(mine)}</p>` : ""}
+        <div class="row"><a class="btn btn-primary btn-sm" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">View at ${esc(store.name)} ↗</a></div>
+      </div>
+      <button type="button" class="ci-x" data-unkeep="${esc(c.id)}" aria-label="Remove ${esc(r.title)} from closet" title="Remove">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </li>`;
+  }
+
   function closetItemHTML({ c, a }) {
+    if (c.item.listing) return closetListingHTML({ c, a });
     const it = c.item;
     const fab = D.FABRICS[it.fabric];
     const check = tallCheck(it);
@@ -767,8 +936,17 @@
     return `<section class="guide">
       <h2 class="sec">Store guide</h2>
       ${imports ? `<p class="guide-note"><b>Import costs.</b> Since 1 January 2026, Thailand charges import duty plus 7% VAT on every parcel, whatever its value. J.Crew includes duties in its price; elsewhere, budget for it. <a href="https://www.nationthailand.com/business/trade/40060170" target="_blank" rel="noopener noreferrer">Nation Thailand ↗</a></p>` : ""}
+      ${LISTINGS ? `<h3 class="guide-sub">In-stock items come from</h3>
+      <p class="muted small">Stock and prices checked ${esc(fmtDate(LISTINGS.fetched))}. Open each listing to confirm before you buy.</p>
+      <dl class="guide-list">${LISTINGS.stores.map((s) => `<div><dt>${esc(s.name)} <span>${names[s.region] || s.region}</span></dt><dd>${esc((s.tall ? "Tall lengths. " : "No tall lengths; check the size chart. ") + s.ships)}</dd></div>`).join("")}</dl>
+      <h3 class="guide-sub">Searches go to</h3>` : ""}
       <dl class="guide-list">${rows.map((s) => `<div><dt>${esc(s.name)} <span>${names[s.region]}</span></dt><dd>${esc(s.note || "")}</dd></div>`).join("")}</dl>
     </section>`;
+  }
+
+  function fmtDate(iso) {
+    try { return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
+    catch (e) { return iso; }
   }
 
   function shoppingListText() {
@@ -783,6 +961,14 @@
     if (meas.length) lines.push("My fit: " + meas.join(", "), "");
     for (const { c, a } of keptCards()) {
       const it = c.item;
+      if (it.listing) {
+        const r = it.listing, st = STORE_BY_ID()[r.store] || { name: r.store };
+        lines.push(`${a === "love" ? "★" : "•"} ${r.title}${r.colorName ? " (" + r.colorName + ")" : ""}: ${st.name}, ${money(r)}, ${r.comp}`);
+        const mine = sizeLineText(r);
+        if (mine) lines.push("   in stock: " + mine);
+        lines.push("   " + r.url);
+        continue;
+      }
       lines.push(`${a === "love" ? "★" : "•"} ${D.COLORS[c.color].name} ${it.name} (${D.FABRICS[it.fabric].label})`);
       const chk = tallCheck(it);
       if (chk) lines.push("   tall check: " + chk);
@@ -924,8 +1110,10 @@
       } else { p[t.name] = t.checked; rebuild = true; }
     } else if (t.tagName === "SELECT") {
       p[t.name] = t.value;
+      rebuild = true;
     } else {
       readFitField(t.name, t.value);
+      if (t.name === "waist") rebuild = true;
     }
     clearTimeout(fitTimer);
     fitTimer = setTimeout(() => {
@@ -1023,7 +1211,9 @@
     const w = tasteWeights();
     const pos = Object.entries(w).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([f, v]) => featureLabel(f) + " +" + v);
     const neg = Object.entries(w).filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]).slice(0, 8).map(([f, v]) => featureLabel(f) + " " + v);
-    const kept = keptCards().map(({ c, a }) => `${a === "love" ? "LOVED" : "liked"}: ${D.COLORS[c.color].name} ${c.item.name} [${c.item.id}]`);
+    const kept = keptCards().map(({ c, a }) => c.item.listing
+      ? `${a === "love" ? "LOVED" : "liked"}: ${c.item.listing.title} (${(STORE_BY_ID()[c.item.listing.store] || {}).name || c.item.listing.store}, ${money(c.item.listing)}, ${c.item.listing.comp}) [${c.item.id}]`
+      : `${a === "love" ? "LOVED" : "liked"}: ${D.COLORS[c.color].name} ${c.item.name} [${c.item.id}]`);
     const passed = Object.entries(S.swipes).filter(([, s]) => s.a === "nope").map(([id]) => CARD_BY_ID.get(id)).filter(Boolean).slice(-25).map((c) => `${D.COLORS[c.color].name} ${c.item.name}`);
     return [
       "Leans toward: " + (pos.join(", ") || "not enough swipes yet"),
@@ -1034,7 +1224,16 @@
   }
 
   function catalogSummary() {
-    return allItems().map((it) => `${it.id}: ${it.name} (${D.FABRICS[it.fabric]?.label}; colours ${it.colors.join("/")})`).join("\n");
+    const ideas = D.ITEMS.concat(S.custom).map((it) => `${it.id}: ${it.name} (${D.FABRICS[it.fabric]?.label}; colours ${it.colors.join("/")})`).join("\n");
+    if (!LISTINGS) return "Idea cards:\n" + ideas;
+    const keep = S.mode;
+    S.mode = "stock";
+    const w = tasteWeights();
+    const stock = CARDS.filter((c) => c.item.listing && eligible(c) && !S.swipes[c.id])
+      .map((c) => ({ c, s: scoreCard(c, w) })).sort((a, b) => b.s - a.s).slice(0, 60)
+      .map(({ c }) => { const r = c.item.listing; return `${c.item.id}: ${r.title}${r.colorName ? " in " + r.colorName : ""} (${(STORE_BY_ID()[r.store] || {}).name}, ${money(r)}, ${r.comp}; in stock for them: ${sizeLineText(r)})`; });
+    S.mode = keep;
+    return "In-stock products (real listings, checked " + LISTINGS.fetched + "):\n" + stock.join("\n") + "\n\nIdea cards:\n" + ideas;
   }
 
   function renderBrief() {
@@ -1057,10 +1256,10 @@
 
 Rules:
 - Recommend natural fibres only: cotton (organic where possible), linen, hemp, wool, silk${S.profile.allowSemi ? ", plus lyocell since they allow it" : ""}${S.profile.allowStretch ? ", plus cotton with up to 5% elastane since they allow it" : ""}. Never polyester, nylon, acrylic, or "bamboo" (it is almost always viscose rayon).
-- You cannot browse. Never invent product names, prices, stock or links. Recommend kinds of items, what words to search, and which measurement to check in a listing. Their Closet tab already has store search links for anything they like.
+- You cannot browse. The only real products you know are the in-stock listings below; you may name those with their store and price. Never invent any other product, price or link. Otherwise recommend kinds of items, what to search, and which measurement to check.
 - Use their measurements. For Taobao, weight charts use jin (1 jin = 0.5 kg). Thai listings usually give garment chest and length in inches.
 - Be warm and direct, like a good friend who styles people. Keep replies under 170 words unless asked for more. Short bullet lists are fine. Plain text with **bold** only; no headings, no tables.
-- Tools: add_cards puts new item ideas at the top of their swipe deck; queue_cards moves existing catalog items to the top. Use them when they ask for ideas, more options, or "show me". After using one, tell them to open the Swipe tab.
+- Tools: queue_cards moves in-stock listings (ids starting "L-") or idea cards to the top of their swipe deck; add_cards creates new idea cards. Prefer queueing real in-stock listings when they ask to see things. After using one, tell them to open the Swipe tab.
 
 Their profile:
 ${profileSummary()}
@@ -1068,7 +1267,7 @@ ${profileSummary()}
 What their swipes say:
 ${tasteSummary()}
 
-Catalog ids you can queue:
+Ids you can queue:
 ${catalogSummary()}
 
 Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(", ")}]; fabric one of [${Object.keys(D.FABRICS).filter((k) => {
@@ -1103,7 +1302,7 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
   const CHIPS = [
     "Build me 3 outfits for lounging at home from what I liked",
     "What exactly should I search on Taobao, and which chart rows fit me?",
-    "Add 5 new cards for hot nights and sleeping",
+    "Show me the best in-stock things for hot nights at home",
     "Which of my liked items is most likely to fit badly?"
   ];
 
@@ -1172,17 +1371,20 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
           persist();
           rebuildDeck(0);
           renderDeck();
-          if (added.length) toast(`Stylist added ${added.length} card${added.length > 1 ? "s" : ""} to your deck`);
+          if (added.length) toast(`Stylist added ${added.length} idea card${added.length > 1 ? "s" : ""} to your deck`);
           return { added, rejected };
         }
       },
       {
         name: "queue_cards",
-        description: "Move existing catalog items (by catalog id) to the top of the swipe deck. Returns which ids were found.",
+        description: "Move in-stock listings (ids starting with L-) or idea cards (catalog ids) to the top of the swipe deck, switching the deck to show them. Returns which ids were found.",
         inputSchema: { type: "object", properties: { ids: { type: "array", items: { type: "string" }, maxItems: 8 } }, required: ["ids"] },
         execute(input) {
           const ids = Array.isArray(input && input.ids) ? input.ids.map(String) : [];
           const found = [];
+          const stockIds = ids.filter((i) => i.startsWith("L-"));
+          if (stockIds.length && S.mode !== "stock") S.mode = "stock";
+          else if (!stockIds.length && ids.length && S.mode === "stock") S.mode = "ideas";
           for (const iid of ids) {
             const cards = CARDS.filter((c) => c.item.id === iid && !S.swipes[c.id] && eligible(c));
             if (cards.length) { found.push(iid); for (const c of cards.reverse()) S.queue.unshift(c.id); }
@@ -1338,6 +1540,15 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
     $("#btnLike").addEventListener("click", () => swipeTop("like"));
     $("#btnLove").addEventListener("click", () => swipeTop("love"));
     $("#btnUndo").addEventListener("click", undo);
+    const setMode = (m) => {
+      if (m === S.mode || busy) return;
+      S.mode = m;
+      persist();
+      rebuildDeck(0);
+      renderDeck();
+    };
+    $("#modeBar").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
+    $("#deck").addEventListener("click", (e) => { const b = e.target.closest("[data-setmode]"); if (b) setMode(b.dataset.setmode); });
 
     document.addEventListener("keydown", (e) => {
       if (currentView !== "swipe" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1404,10 +1615,28 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
 
   /* ----------------------------------------------------------------- boot */
 
+  async function loadListings() {
+    try {
+      const res = await fetch("listings.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      if (!data || !Array.isArray(data.listings)) throw new Error("bad data");
+      LISTINGS = data;
+      listingsState = "ok";
+    } catch (e) {
+      listingsState = "failed";
+      if (S.mode === "stock") S.mode = "ideas";
+    }
+    refreshCards();
+    rebuildDeck(0);
+    renderAll();
+  }
+
   rebuildDeck(0);
   wire();
   renderAll();
   route();
+  loadListings();
   initCloud();
   initStylist();
 })();

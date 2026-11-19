@@ -48,6 +48,47 @@ Natural fibres only. Polyester, nylon and acrylic are never shown. Neither is "b
 
 Any of these can be added once shipping is confirmed.
 
+## In-stock listings (the "In stock now" deck)
+
+Pulled on 2026-11-19 by `tools/fetch_listings.py`. The script reads each store's public Shopify product feed (`/products.json`). Run it again to refresh stock and prices:
+
+```
+python3 -I tall-order/tools/fetch_listings.py
+```
+
+The app opens with the snapshot in `listings.json`. It says when the stock was checked and tells you to confirm on the store's page before buying.
+
+### Stores used
+
+| Store | Why it's in | Thailand shipping evidence |
+|---|---|---|
+| American Tall (americantall.com) | Tall-only menswear and womenswear (Semi Tall, Tall, Extra Tall lengths) | "Thailand (THB)" is in the store's ship-to selector [tested] |
+| MagicLinen (magiclinen.com) | 100% linen; menswear and womenswear up to 2XL; no tall lengths | Shipping page: "Free Worldwide Courier Delivery … for other countries … orders over $100". Thailand is in the country list [tested] |
+| notPERFECTLINEN (notperfectlinen.com) | Linen-only maker; product pages say OEKO-TEX Standard 100 and EUROPEAN FLAX certified linen fabric; up to 2XL; no tall lengths | Shipping policy: DHL/FedEx "worldwide". Thailand (THB) is in the country list [tested] |
+
+### Checked and left out
+
+- **Alloy Apparel** (women's tall): ships to Thailand per its shipping policy [tested]. Its feed doesn't state fibre content ("soft cotton feel"), so polyester can't be ruled out.
+- **Tall Slim Tees**: 39 of 50 products contain synthetics, and Thailand shipping was not confirmed.
+- **Kotn**: not tall, and Thailand is not on its international list.
+- **2Tall**: doesn't ship to Thailand (see above).
+
+### Filters the script applies
+
+- **Fibre.** Every product's description is parsed for percentages.
+  - Dropped: any polyester, nylon, polyamide, acrylic, polypropylene, rayon, viscose, modal, bamboo, acetate or PU.
+  - Dropped: more than 5% spandex or elastane.
+  - Dropped: a synthetic named without a percentage, unless a clean "100% cotton/linen/…" statement is present.
+  - Products with no fibre information are dropped.
+  - notPERFECTLINEN rarely states percentages. Its items are accepted as linen only when the description names no other fibre. The app labels these "Linen (European Flax certified)", not "100%".
+- **Stretch and lyocell.** Items with up to 5% elastane, or with lyocell, are kept but hidden unless you allow them in Fit.
+- **Size.** Kept only if in stock in XL or larger, a waist of 36 in or more, or a women's size of 14 or more. The app then narrows this to your usual size and waist from Fit.
+- **What's kept.** Clothing only; shoes, accessories, swim, bedding and similar are dropped. One-off returns ("R:", "customized:") are dropped. At most two colourways per style, and per-category caps so jeans don't swamp the deck.
+
+### Photos
+
+Product photos are the stores' own. They are downloaded at 480 px only to show inside the private artifact, each linked to its source listing. They are not committed to git (`tall-order/listings/` is ignored). If the artifact is ever shared publicly, remove the photos or ask the stores first.
+
 ## Sizing facts used in the Fit tab
 
 - **US tall cuts.** Tall usually adds about 2 in of body length. Gap tall tops M–XL: +2 in; Lands' End shirts: about +2 in; L.L.Bean: +2 in overall [all snippet]. The app says "about 2 in".
