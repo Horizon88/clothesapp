@@ -140,6 +140,7 @@ svg { display: block; }
     var(--tape);
 }
 .brand-word {
+  white-space: nowrap;
   font-family: var(--f-display);
   font-size: 32px;
   line-height: 1;
@@ -259,7 +260,7 @@ svg { display: block; }
 }
 .deck-col {
   height: 100%;
-  min-height: 500px;
+  min-height: 0;
   max-width: 420px;
   margin: 0 auto;
   display: flex;
@@ -1231,4 +1232,30 @@ kbd {
 
 @media (max-height: 700px) and (max-width: 899px) {
   .card-listing .card-foot .check { display: none; }
+}
+
+/* small and short phones: keep the buttons above the tab bar */
+@media (max-width: 400px) {
+  .sync { font-size: 0; gap: 0; }
+}
+@media (max-height: 760px) and (max-width: 899px) {
+  .masthead { padding-block: 6px 2px; }
+  .brand-word { font-size: 26px; }
+  .brand-mark { width: 12px; height: 24px; }
+  .view { padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px); }
+  .deck-col { gap: 8px; padding-top: 2px; }
+  .setup-nudge { font-size: 12.5px; padding: 6px 10px; }
+  .mode button { padding: 6px 8px; font-size: 13px; }
+  .card, .deck-empty { inset: 0 0 12px; }
+  .card-art { min-height: 110px; }
+  .card-info { padding: 10px 14px 12px; gap: 4px; }
+  .card-listing .card-name { font-size: 26px; }
+  .card-listing .flags .flag:not(.flag-link) { display: none; }
+  .act-nope, .act-like { width: 52px; height: 52px; }
+  .act-love { width: 44px; height: 44px; }
+  .act-undo { width: 38px; height: 38px; }
+}
+@media (max-height: 600px) and (max-width: 899px) {
+  .card-why, .tmark b { display: none; }
+  .card-name { font-size: 24px; }
 }

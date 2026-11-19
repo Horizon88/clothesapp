@@ -607,12 +607,12 @@
     const nudge = $("#setupNudge");
     if (S.mode === "stock" && !p.usualSize) {
       nudge.hidden = false;
-      nudge.firstElementChild.textContent = "Showing XL and up. Set your usual size and waist to see only what's in stock for you.";
-      nudge.lastElementChild.textContent = "Set size";
+      nudge.firstElementChild.textContent = "Showing XL and up.";
+      nudge.lastElementChild.textContent = "Set your size";
     } else {
       nudge.hidden = !!(p.height || p.len || p.inseam);
-      nudge.firstElementChild.textContent = "Add your height and a tee that fits. Every card then shows a tall check.";
-      nudge.lastElementChild.textContent = "Add measurements";
+      nudge.firstElementChild.textContent = "Add measurements for a tall check on every card.";
+      nudge.lastElementChild.textContent = "Add";
     }
   }
 

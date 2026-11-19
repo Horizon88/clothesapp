@@ -30,7 +30,9 @@ One person:
 
 ## Republishing the artifact
 
-Publish `index.html` with `url` set to the artifact link above.
+The Artifact tool only reads files under the session's working directory or scratchpad.
+- First copy `index.html`, `styles.css`, `catalog.js`, `app.js`, `listings.json` and `listings/` into the scratchpad.
+- Then publish that copy's `index.html` with `url` set to the artifact link above.
 
 Pass `files` with these:
 - `styles.css`, `catalog.js`, `app.js`, `listings.json`
