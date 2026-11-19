@@ -9,11 +9,11 @@ Keeps only clothing that:
   * is in stock in XL or bigger (or a big waist / women's 14+),
   * maps to one of the app's garment categories.
 
-Writes tall-order/listings.json and product thumbnails to tall-order/listings/
+Writes listings.json and product thumbnails to listings/
 (thumbnails are git-ignored: they are the stores' photos, published only to the
 private artifact).
 
-Usage:  python3 -I tall-order/tools/fetch_listings.py [--no-images]
+Usage:  python3 -I tools/fetch_listings.py [--no-images]
 """
 
 import html

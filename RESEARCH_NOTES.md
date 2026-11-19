@@ -53,7 +53,7 @@ Any of these can be added once shipping is confirmed.
 Pulled on 2026-11-19 by `tools/fetch_listings.py`. The script reads each store's public Shopify product feed (`/products.json`). Run it again to refresh stock and prices:
 
 ```
-python3 -I tall-order/tools/fetch_listings.py
+python3 -I tools/fetch_listings.py
 ```
 
 The app opens with the snapshot in `listings.json`. It says when the stock was checked and tells you to confirm on the store's page before buying.
@@ -87,7 +87,7 @@ The app opens with the snapshot in `listings.json`. It says when the stock was c
 
 ### Photos
 
-Product photos are the stores' own. They are downloaded at 480 px only to show inside the private artifact, each linked to its source listing. They are not committed to git (`tall-order/listings/` is ignored). If the artifact is ever shared publicly, remove the photos or ask the stores first.
+Product photos are the stores' own. They are downloaded at 480 px only to show inside the private artifact, each linked to its source listing. They are not committed to git (`listings/` is ignored). If the artifact is ever shared publicly, remove the photos or ask the stores first.
 
 ## Sizing facts used in the Fit tab
 
