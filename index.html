@@ -1,0 +1,139 @@
+<title>Tall Order</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A swipe-to-style shopping assistant for tall, big bodies who want natural fibres.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=League+Gothic&display=swap">
+<link rel="stylesheet" href="styles.css">
+
+<div class="app" id="app">
+  <header class="masthead">
+    <a class="brand" href="#swipe" aria-label="Tall Order home">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-word">Tall Order</span>
+    </a>
+    <p class="brand-sub">Natural fibres, cut for long bodies. Shipping to Thailand.</p>
+    <span class="sync" id="sync" title="Where your swipes are saved">Saved on this device</span>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <a class="tab" href="#swipe" data-view="swipe">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="11" height="16" rx="2"/><path d="M19 6.5v12a2 2 0 0 1-2 2H9"/></svg>
+      <span>Swipe</span>
+    </a>
+    <a class="tab" href="#closet" data-view="closet">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a2 2 0 1 1 2 2c-1 0-2 .7-2 2v1"/><path d="M12 10 3 17h18z"/></svg>
+      <span>Closet</span><b class="count" id="closetCount">0</b>
+    </a>
+    <a class="tab" href="#stylist" data-view="stylist">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+      <span>Stylist</span>
+    </a>
+    <a class="tab" href="#fit" data-view="fit">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M10 8v2M13 8v3M16 8v2M19 8v3"/></svg>
+      <span>Fit</span>
+    </a>
+  </nav>
+
+  <main class="views">
+    <!-- SWIPE -->
+    <section class="view view-swipe" id="view-swipe" data-view="swipe" aria-label="Swipe">
+      <div class="deck-col">
+        <div class="setup-nudge" id="setupNudge" hidden>
+          <span>Add your height and a tee that fits. Every card then shows a tall check.</span>
+          <a href="#fit">Add measurements</a>
+        </div>
+        <div class="deck" id="deck" aria-live="polite"></div>
+        <div class="actions" role="group" aria-label="Decide on this item">
+          <button class="act act-undo" id="btnUndo" type="button" aria-label="Undo last swipe" title="Undo (Z)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+          </button>
+          <button class="act act-nope" id="btnNope" type="button" aria-label="Pass" title="Pass (←)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+          <button class="act act-love" id="btnLove" type="button" aria-label="Love it" title="Love (↑)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.5 6 .8-4.4 4.1 1.1 6L12 16.6 6.7 19.4l1.1-6L3.4 9.3l6-.8z"/></svg>
+          </button>
+          <button class="act act-like" id="btnLike" type="button" aria-label="Like" title="Like (→)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
+          </button>
+        </div>
+        <p class="keys">Drag the card, or use <kbd>←</kbd> pass · <kbd>↑</kbd> love · <kbd>→</kbd> like · <kbd>Z</kbd> undo</p>
+      </div>
+
+      <aside class="taste" id="taste" aria-label="What the stylist has learned">
+        <div class="taste-head">
+          <h2>Your taste so far</h2>
+          <p class="taste-stats" id="tasteStats"></p>
+        </div>
+        <div id="tasteBody"></div>
+      </aside>
+    </section>
+
+    <!-- CLOSET -->
+    <section class="view view-closet" id="view-closet" data-view="closet" aria-label="Closet" hidden>
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h1>Closet</h1>
+            <p class="lede">Everything you liked, with ready-made searches for the stores you shop. Search words are in English, Thai and Chinese, with tall and big-size terms added.</p>
+          </div>
+          <button class="btn" id="btnCopyList" type="button">Copy shopping list</button>
+        </div>
+        <div id="closetBody"></div>
+      </div>
+    </section>
+
+    <!-- STYLIST -->
+    <section class="view view-stylist" id="view-stylist" data-view="stylist" aria-label="Stylist" hidden>
+      <div class="page page-chat">
+        <div class="page-head">
+          <div>
+            <h1>Stylist</h1>
+            <p class="lede">Claude, briefed on your measurements, your swipes and the polyester ban. It can put new cards at the top of your deck.</p>
+          </div>
+        </div>
+
+        <div class="chat" id="chat" hidden>
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="chips" id="chatChips"></div>
+          <form class="composer" id="composer">
+            <label class="sr" for="chatInput">Message your stylist</label>
+            <textarea id="chatInput" rows="2" placeholder="Ask for outfits, what to search on Taobao, or new cards to swipe"></textarea>
+            <div class="composer-actions">
+              <button class="btn btn-quiet" id="btnStop" type="button" hidden>Stop</button>
+              <button class="btn btn-primary" id="btnSend" type="submit">Send</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="brief" id="brief">
+          <h2>Stylist brief</h2>
+          <p id="briefWhy">The live stylist needs Claude. While it connects, here is your brief: paste it into any Claude chat for the same advice.</p>
+          <pre id="briefText" tabindex="0"></pre>
+          <button class="btn" id="btnCopyBrief" type="button">Copy brief</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- FIT -->
+    <section class="view view-fit" id="view-fit" data-view="fit" aria-label="Fit profile" hidden>
+      <div class="page">
+        <div class="page-head">
+          <div>
+            <h1>Fit</h1>
+            <p class="lede">Measure clothes you already own that fit well. That beats any size chart, and it works across US, Thai and Chinese sizing.</p>
+          </div>
+        </div>
+        <form class="fit-form" id="fitForm" autocomplete="off"></form>
+        <div class="convert" id="convert"></div>
+        <div class="why-natural" id="whyNatural"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+
+<script src="catalog.js"></script>
+<script src="app.js"></script>
