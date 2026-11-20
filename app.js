@@ -1102,6 +1102,7 @@
       p[t.name] = t.value;
       if (t.name === "units") rerenderForm = true;
       if (t.name === "dept" || t.name === "climate") rebuild = true;
+      if (t.name === "dept") renderDeptBar();
     } else if (t.type === "checkbox") {
       if (t.name === "region") {
         const set = new Set(p.regions);
@@ -1522,7 +1523,26 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
     return true;
   }
 
+  function renderDeptBar() {
+    for (const b of $$("#deptBar [data-dept]")) b.setAttribute("aria-checked", b.dataset.dept === S.profile.dept ? "true" : "false");
+  }
+
+  function setDept(d) {
+    if (busy || d === S.profile.dept || !["m", "w", "both"].includes(d)) return;
+    S.profile.dept = d;
+    persist();
+    rebuildDeck(0);
+    renderDeck();
+    renderDeptBar();
+    renderFitForm();
+    renderConvert();
+    renderBrief();
+    if (currentView === "closet") renderCloset();
+    toast({ m: "Showing menswear", w: "Showing womenswear", both: "Showing menswear and womenswear" }[d]);
+  }
+
   function renderAll() {
+    renderDeptBar();
     renderDeck();
     renderTaste();
     renderCount(false);
@@ -1536,6 +1556,7 @@ Valid values for add_cards: category one of [${Object.keys(D.CATEGORIES).join(",
   /* ----------------------------------------------------------------- wire */
 
   function wire() {
+    $("#deptBar").addEventListener("click", (e) => { const b = e.target.closest("[data-dept]"); if (b) setDept(b.dataset.dept); });
     $("#btnNope").addEventListener("click", () => swipeTop("nope"));
     $("#btnLike").addEventListener("click", () => swipeTop("like"));
     $("#btnLove").addEventListener("click", () => swipeTop("love"));

@@ -153,7 +153,7 @@ svg { display: block; }
   display: none;
 }
 .sync {
-  margin-left: auto;
+  margin-left: 0;
   font-family: var(--f-mono);
   font-size: 11px;
   color: var(--muted);
@@ -172,6 +172,30 @@ svg { display: block; }
 .sync[data-state="ok"]::before { background: var(--like); }
 .sync[data-state="busy"]::before { background: var(--accent); }
 .sync[data-state="warn"]::before { background: var(--nope); }
+
+/* Men / Women / Both, always in the header */
+.dept {
+  margin-left: auto;
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+.dept button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 32px;
+}
+.dept button[aria-checked="true"] { background: var(--indigo); color: var(--on-indigo); }
+.dept button:not([aria-checked="true"]):hover { color: var(--ink); }
 
 .tabs {
   position: fixed;
@@ -1235,7 +1259,7 @@ kbd {
 }
 
 /* small and short phones: keep the buttons above the tab bar */
-@media (max-width: 400px) {
+@media (max-width: 640px) {
   .sync { font-size: 0; gap: 0; }
 }
 @media (max-height: 760px) and (max-width: 899px) {
@@ -1258,4 +1282,10 @@ kbd {
 @media (max-height: 600px) and (max-width: 899px) {
   .card-why, .tmark b { display: none; }
   .card-name { font-size: 24px; }
+}
+
+@media (max-width: 370px) {
+  .masthead { gap: 8px; }
+  .brand-word { font-size: 23px; }
+  .dept button { padding: 5px 8px; font-size: 12.5px; }
 }
